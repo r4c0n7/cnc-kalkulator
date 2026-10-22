@@ -1,0 +1,268 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Frästeil-Kalkulation</title>
+<meta name="description" content="Kosten für CNC-Frästeile nachvollziehbar kalkulieren: STEP-Modell hochladen, Material, Toleranzen und Menge wählen, Angebot anfragen.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="src/styles.css">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='2' y='2' width='28' height='28' fill='%23fff' stroke='%2317202a' stroke-width='2'/%3E%3Ccircle cx='16' cy='16' r='6' fill='none' stroke='%230e6a80' stroke-width='3'/%3E%3C/svg%3E">
+</head>
+<body>
+<header class="top">
+  <h1><span id="shopTitle">Frästeil-Kalkulation</span><small>Kosten für CNC-Frästeile, nachvollziehbar Posten für Posten</small></h1>
+  <nav class="tabs" role="tablist" aria-label="Ansicht">
+    <button role="tab" aria-selected="true" aria-controls="view-calc" id="tab-calc">Kalkulation</button>
+    <button role="tab" aria-selected="false" aria-controls="view-shop" id="tab-shop">Betrieb</button>
+    <button role="tab" aria-selected="false" aria-controls="view-method" id="tab-method">Rechenweg</button>
+  </nav>
+  <button class="theme-toggle" id="themeToggle" type="button" aria-label="Hell oder dunkel umschalten">◐</button>
+</header>
+
+<main class="page">
+<!-- ================= calculation ================= -->
+<section class="view" id="view-calc" role="tabpanel" aria-labelledby="tab-calc">
+<div class="split">
+<form class="plan" id="form" autocomplete="off" onsubmit="return false">
+
+  <section class="op" aria-labelledby="h10">
+    <div class="op-no">10</div>
+    <div class="op-body">
+      <h2 id="h10">Modell</h2>
+      <p class="lead">STEP-Datei hier ablegen. Abmessungen, Volumen, Bohrungen und Gewinde werden im Browser gelesen. Aus AP242-Dateien kommen auch die Toleranzen. Die Datei verlässt Ihren Rechner nicht.</p>
+      <label class="drop" id="drop" tabindex="0">
+        <strong>STEP-Datei wählen oder hierher ziehen</strong>
+        <span>.step, .stp, .iges</span>
+        <input type="file" id="stepFile" accept=".step,.stp,.igs,.iges" class="sr">
+      </label>
+      <div class="status" id="stepStatus" role="status" aria-live="polite"></div>
+      <div class="model" id="model" hidden>
+        <canvas id="preview" width="520" height="390" aria-label="Vorschau des Modells"></canvas>
+        <div>
+          <table class="found" id="found"></table>
+          <div class="row"><button type="button" class="btn" id="applyStep">Werte übernehmen</button><span class="note" id="applyNote"></span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="op" aria-labelledby="h20">
+    <div class="op-no">20</div>
+    <div class="op-body">
+      <h2 id="h20">Werkstoff und Rohteil</h2>
+      <p class="lead">Maße des fertigen Teils. Das Rohteil bekommt ringsum Aufmaß und wird gesägt.</p>
+      <div class="grid wide">
+        <label class="f"><span>Werkstoff</span><select data-k="materialId" id="material"></select></label>
+        <div class="f"><span>Rohteilform</span>
+          <div class="seg" role="group" aria-label="Rohteilform">
+            <button type="button" data-shape="block" aria-pressed="true">Block</button>
+            <button type="button" data-shape="round" aria-pressed="false">Rundmaterial</button>
+          </div>
+        </div>
+      </div>
+      <div class="grid" style="margin-top:12px" id="dimsBlock">
+        <label class="f"><span>Länge X</span><span class="unit"><input type="number" min="0" step="0.1" data-k="x"><i>mm</i></span></label>
+        <label class="f"><span>Breite Y</span><span class="unit"><input type="number" min="0" step="0.1" data-k="y"><i>mm</i></span></label>
+        <label class="f"><span>Höhe Z</span><span class="unit"><input type="number" min="0" step="0.1" data-k="z"><i>mm</i></span></label>
+      </div>
+      <div class="grid" style="margin-top:12px" id="dimsRound" hidden>
+        <label class="f"><span>Durchmesser</span><span class="unit"><input type="number" min="0" step="0.1" data-k="diameter"><i>mm</i></span></label>
+        <label class="f"><span>Länge</span><span class="unit"><input type="number" min="0" step="0.1" data-k="length"><i>mm</i></span></label>
+      </div>
+      <div class="grid" style="margin-top:12px">
+        <label class="f"><span>Aufmaß je Seite</span><span class="unit"><input type="number" min="0" step="0.5" data-k="allowance"><i>mm</i></span></label>
+        <label class="f"><span>Volumen Fertigteil</span><span class="unit"><input type="number" min="0" step="0.1" data-k="partVolume" placeholder="aus Füllgrad"><i>cm³</i></span></label>
+        <label class="f"><span>Füllgrad, wenn Volumen fehlt</span><span class="unit"><input type="number" min="1" max="100" step="1" data-k="fill"><i>%</i></span></label>
+        <label class="f"><span>Oberfläche</span><span class="unit"><input type="number" min="0" step="1" data-k="surfaceArea" placeholder="geschätzt"><i>cm²</i></span></label>
+      </div>
+      <label class="check"><input type="checkbox" data-k="materialProvided"> Material wird beigestellt</label>
+    </div>
+  </section>
+
+  <section class="op" aria-labelledby="h30">
+    <div class="op-no">30</div>
+    <div class="op-body">
+      <h2 id="h30">Bearbeitung</h2>
+      <p class="lead">Was am Teil gefertigt wird. Aufspannungen sind die Seiten, von denen bearbeitet wird.</p>
+      <div class="grid">
+        <label class="f"><span>Maschine</span><select data-k="machineId" id="machine"></select></label>
+        <label class="f"><span>Aufspannungen</span><input type="number" min="1" max="12" step="1" data-k="setups"></label>
+        <label class="f"><span>Plan gefräste Seiten</span><input type="number" min="0" max="6" step="1" data-k="facedSides" placeholder="auto"></label>
+        <label class="f"><span>Werkzeuge</span><input type="number" min="1" max="60" step="1" data-k="tools"></label>
+        <label class="f"><span>Bohrungen</span><input type="number" min="0" step="1" data-k="holes"></label>
+        <label class="f"><span>Bohrtiefe im Mittel</span><span class="unit"><input type="number" min="0" step="1" data-k="holeDepth"><i>mm</i></span></label>
+        <label class="f"><span>davon Gewinde</span><input type="number" min="0" step="1" data-k="threads"></label>
+        <label class="f"><span>Taschen und große Bohrungen</span><input type="number" min="0" step="1" data-k="pockets"></label>
+      </div>
+      <div class="grid wide" style="margin-top:12px">
+        <label class="f"><span>Komplexität</span><select data-k="complexity" id="complexity"></select></label>
+        <label class="f"><span>Spannmittel</span><select data-k="fixture" id="fixture"></select></label>
+      </div>
+    </div>
+  </section>
+
+  <section class="op" aria-labelledby="h40">
+    <div class="op-no">40</div>
+    <div class="op-body">
+      <h2 id="h40">Toleranzen und Oberfläche</h2>
+      <p class="lead">Die Allgemeintoleranz gilt für alle nicht eigens tolerierten Maße. Engere Maße hier zählen. Passmaße werden standardmäßig zweimal geschlichtet.</p>
+      <div class="grid wide">
+        <label class="f"><span>Allgemeintoleranz</span><select data-k="generalTol" id="generalTol"></select></label>
+        <label class="f"><span>Rauheit</span><select data-k="roughness" id="roughness"></select></label>
+      </div>
+      <table class="ladder" aria-label="Eng tolerierte Merkmale">
+        <thead><tr><th>Toleranz</th><th>ISO-Grad</th><th>Anzahl Merkmale</th></tr></thead>
+        <tbody id="ladder"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="op" aria-labelledby="h50">
+    <div class="op-no">50</div>
+    <div class="op-body">
+      <h2 id="h50">Nachbehandlung und Prüfung</h2>
+      <div class="grid wide">
+        <label class="f"><span>Oberflächenbehandlung</span><select data-k="finish" id="finish"></select></label>
+        <label class="f"><span>Sonderwerkzeuge, einmalig</span><span class="unit"><input type="number" min="0" step="10" data-k="specialTools"><i>€</i></span></label>
+      </div>
+      <div style="margin-top:8px">
+        <label class="check"><input type="checkbox" data-k="deburr"> Entgraten von Hand</label>
+        <label class="check"><input type="checkbox" data-k="cmm"> Messung auf Koordinatenmessgerät, jedes Teil</label>
+        <label class="check"><input type="checkbox" data-k="fai"> Erstmusterprüfbericht</label>
+        <label class="check"><input type="checkbox" data-k="cert31"> Werkszeugnis 3.1 nach EN 10204</label>
+      </div>
+    </div>
+  </section>
+
+  <section class="op" aria-labelledby="h60">
+    <div class="op-no">60</div>
+    <div class="op-body">
+      <h2 id="h60">Menge und Anfrage</h2>
+      <div class="grid">
+        <label class="f"><span>Stückzahl</span><input type="number" min="1" step="1" data-k="quantity"></label>
+        <label class="f"><span>Zielpreis je Stück, netto</span><span class="unit"><input type="number" min="0" step="0.01" data-k="targetPrice" placeholder="optional"><i>€</i></span></label>
+      </div>
+      <label class="check"><input type="checkbox" data-k="repeat"> Wiederholteil, Programm vorhanden</label>
+      <label class="check"><input type="checkbox" data-k="shipping"> Versand per Paket</label>
+      <div class="grid wide" style="margin-top:12px">
+        <label class="f"><span>Firma</span><input type="text" data-k="customer.company"></label>
+        <label class="f"><span>Ansprechpartner</span><input type="text" data-k="customer.contact"></label>
+        <label class="f"><span>E-Mail</span><input type="email" data-k="customer.email"></label>
+        <label class="f"><span>Teil / Zeichnungsnummer</span><input type="text" data-k="customer.part"></label>
+      </div>
+      <label class="f" style="margin-top:12px"><span>Hinweise zum Teil</span><textarea rows="2" data-k="customer.note"></textarea></label>
+    </div>
+  </section>
+</form>
+
+<aside class="block" aria-label="Ergebnis" id="result"></aside>
+</div>
+</section>
+
+<!-- ================= shop settings ================= -->
+<section class="view" id="view-shop" role="tabpanel" aria-labelledby="tab-shop" hidden>
+  <div class="panel">
+    <h2>Betrieb</h2>
+    <p>Diese Angaben stehen auf dem Angebot. Anfragen gehen an die E-Mail-Adresse. Alles bleibt in diesem Browser gespeichert, bis Sie es exportieren.</p>
+    <div class="grid wide">
+      <label class="f"><span>Firmenname</span><input type="text" data-s="shop.name"></label>
+      <label class="f"><span>E-Mail für Anfragen</span><input type="email" data-s="shop.email"></label>
+      <label class="f"><span>Anschrift</span><input type="text" data-s="shop.address"></label>
+      <label class="f"><span>Angebot gültig</span><span class="unit"><input type="number" min="1" data-s="shop.validity"><i>Tage</i></span></label>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Maschinen und Stundensätze</h2>
+    <p>Tragen Sie den Stundensatz Ihrer Maschinen ein, wie Sie ihn kalkulieren. Wer ihn erst ermitteln will, schaltet auf VDI 3258: Abschreibung, Zinsen, Raum, Energie und Instandhaltung, dazu Lohn und Rest-Gemeinkosten. Der Kalibrierfaktor gleicht die berechnete Laufzeit an Ihre echten Laufzeiten an.</p>
+    <div class="tbl-wrap"><table class="tbl" id="machinesTbl"></table></div>
+    <div class="row"><button type="button" class="btn ghost" id="addMachine">Maschine hinzufügen</button></div>
+    <div id="vdiBox"></div>
+  </div>
+
+  <div class="panel">
+    <h2>Fertigungsstrategie</h2>
+    <p>So fräst Ihr Betrieb. Ein Ø63-Messerkopf braucht auf einer 80er Platte zwei Bahnen, ein Ø100 nur eine; das ändert die Laufzeit.</p>
+    <div class="grid">
+      <label class="f"><span>Messerkopf Ø</span><span class="unit"><input type="number" min="10" step="1" data-s="defaults.strategy.faceMillD"><i>mm</i></span></label>
+      <label class="f"><span>Nutzbare Breite</span><span class="unit"><input type="number" min="10" max="100" step="1" data-s="defaults.strategy.faceStepover"><i>% Ø</i></span></label>
+      <label class="f"><span>Überlauf je Bahn</span><span class="unit"><input type="number" min="0" step="1" data-s="defaults.strategy.faceOverrun"><i>mm</i></span></label>
+      <label class="f"><span>Schlichtdurchgänge an Passmaßen</span><input type="number" min="1" max="5" step="1" data-s="defaults.strategy.fitPasses"></label>
+      <label class="f"><span>Gewinde</span><select data-s="defaults.strategy.threadMethod"><option value="tap">gebohrt (Gewindebohrer)</option><option value="mill">gefräst (Gewindefräser)</option></select></label>
+      <label class="f"><span>Nebenzeit Luftschnitte</span><span class="unit"><input type="number" min="0" step="1" data-s="defaults.airCutShare"><i>%</i></span></label>
+      <label class="f"><span>Rüsten je Aufspannung</span><span class="unit"><input type="number" min="0" step="1" data-s="defaults.tool.setupBaseMin"><i>min</i></span></label>
+      <label class="f"><span>Rüsten je Werkzeug</span><span class="unit"><input type="number" min="0" step="0.5" data-s="defaults.tool.setupPerToolMin"><i>min</i></span></label>
+      <label class="f"><span>Werkzeugwechsel</span><span class="unit"><input type="number" min="0" step="0.05" data-s="defaults.tool.changeMin"><i>min</i></span></label>
+    </div>
+    <h3 style="margin-top:16px;font-size:16px">Kalibrieren mit einer echten Laufzeit</h3>
+    <p class="note">Das aktuelle Teil aus der Kalkulation auf der gewählten Maschine gefertigt? Tragen Sie die gemessene Laufzeit je Teil ein (Spindel läuft, ohne Spannen).</p>
+    <div class="row">
+      <label class="f" style="max-width:200px"><span>Gemessene Laufzeit</span><span class="unit"><input type="number" min="0" step="0.1" id="measured"><i>min</i></span></label>
+      <button type="button" class="btn ghost" id="calibrate" style="align-self:flex-end">Faktor berechnen und speichern</button>
+      <span class="note" id="calibNote" style="align-self:flex-end"></span>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Sätze und Zuschläge</h2>
+    <p>Die Zuschlagskalkulation: Materialgemeinkosten auf Material, Verwaltung und Vertrieb auf die Herstellkosten, Gewinn auf die Selbstkosten.</p>
+    <div class="grid">
+      <label class="f"><span>CAM-Programmierung</span><span class="unit"><input type="number" min="0" data-s="defaults.camRate"><i>€/h</i></span></label>
+      <label class="f"><span>Handarbeit</span><span class="unit"><input type="number" min="0" data-s="defaults.manualRate"><i>€/h</i></span></label>
+      <label class="f"><span>Qualitätsprüfung</span><span class="unit"><input type="number" min="0" data-s="defaults.qsRate"><i>€/h</i></span></label>
+      <label class="f"><span>Koordinatenmessgerät</span><span class="unit"><input type="number" min="0" data-s="defaults.cmmRate"><i>€/h</i></span></label>
+      <label class="f"><span>Materialgemeinkosten</span><span class="unit"><input type="number" min="0" data-s="defaults.material.overhead"><i>%</i></span></label>
+      <label class="f"><span>Zuschnitt je Stück</span><span class="unit"><input type="number" min="0" step="0.1" data-s="defaults.material.cutCost"><i>€</i></span></label>
+      <label class="f"><span>Verwaltung und Vertrieb</span><span class="unit"><input type="number" min="0" data-s="defaults.salesOverhead"><i>%</i></span></label>
+      <label class="f"><span>Gewinn</span><span class="unit"><input type="number" min="0" data-s="defaults.profit"><i>%</i></span></label>
+      <label class="f"><span>Skonto</span><span class="unit"><input type="number" min="0" step="0.5" data-s="defaults.cashDiscount"><i>%</i></span></label>
+      <label class="f"><span>Rabatt</span><span class="unit"><input type="number" min="0" step="0.5" data-s="defaults.discount"><i>%</i></span></label>
+      <label class="f"><span>Mehrwertsteuer</span><span class="unit"><input type="number" min="0" data-s="defaults.vat"><i>%</i></span></label>
+      <label class="f"><span>Mindestauftragswert</span><span class="unit"><input type="number" min="0" data-s="defaults.minOrder"><i>€</i></span></label>
+      <label class="f"><span>Versand je Auftrag</span><span class="unit"><input type="number" min="0" step="0.5" data-s="defaults.shipping"><i>€</i></span></label>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Materialpreise</h2>
+    <p>Netto-Preise für Zuschnitte in kleinen Mengen, Stand 2026. Mit Ihren Einkaufspreisen überschreiben.</p>
+    <div class="tbl-wrap"><table class="tbl" id="materialsTbl"></table></div>
+  </div>
+
+  <div class="panel">
+    <h2>Einstellungen weitergeben</h2>
+    <p>Als Datei sichern, auf einem anderen Rechner laden, oder einen Link erzeugen: Kunden, die diesen Link öffnen, rechnen mit Ihren Sätzen.</p>
+    <div class="actions">
+      <button type="button" class="btn ghost" id="exportSettings">Als Datei sichern</button>
+      <label class="btn ghost">Datei laden<input type="file" accept=".json" id="importSettings" class="sr"></label>
+      <button type="button" class="btn ghost" id="shareSettings">Kundenlink kopieren</button>
+      <button type="button" class="btn ghost" id="resetSettings">Auf Standardwerte zurücksetzen</button>
+    </div>
+    <div class="status" id="settingsStatus" role="status" aria-live="polite"></div>
+  </div>
+</section>
+
+<!-- ================= method ================= -->
+<section class="view" id="view-method" role="tabpanel" aria-labelledby="tab-method" hidden>
+  <article class="doc" id="methodDoc"></article>
+</section>
+</main>
+
+<footer class="foot">
+  Richtwerte, keine verbindliche Zusage. Das verbindliche Angebot folgt nach Prüfung von Modell und Zeichnung.<br>
+  Alle Eingaben und Einstellungen werden als Cookie und im lokalen Speicher dieses Browsers abgelegt, nur für diese Seite, ein Jahr lang. Sie werden an niemanden übertragen.
+  <button type="button" class="linkbtn" id="clearAll">Gespeicherte Eingaben löschen</button>
+</footer>
+
+<a class="mini" id="mini" href="#result"><span id="miniPrice"></span><span>Aufschlüsselung</span></a>
+<div class="offer" id="offer" aria-hidden="true"></div>
+
+<script src="src/data.js"></script>
+<script src="src/engine.js"></script>
+<script src="src/step.js"></script>
+<script src="src/app.js"></script>
+</body>
+</html>
